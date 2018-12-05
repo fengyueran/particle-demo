@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import styled from 'styled-components';
+import PARTICLE from './particle';
 
 const Canvas = styled.canvas`
   width: 100%;
@@ -34,12 +35,16 @@ class App extends Component {
   }
 
   componentDidMount() {
-    const offscreenCanvas = this.createOffscreenCanvas();
+    this.start();
+  }
+
+  start = () => {
+    const offscreenCanvas = this.createOffScreenCanvas();
     this.getTextsData(offscreenCanvas);
     this.draw();
   }
 
-  createOffscreenCanvas= () => {
+  createOffScreenCanvas = () => {
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
     this.offscreenCanvas = document.createElement('canvas');
@@ -106,10 +111,15 @@ class App extends Component {
       for (let j = 0; j < cols; j += intervel) {
         const alpha = data.data[(i * cols + j) * 4 + 3];
         if (alpha) {
-          points.push({
-            x: j, // j行i列对于坐标而言是(x, y)即(列,行)
-            y: i
-          });
+          // j行i列对于坐标而言是(x, y)即(列,行)
+          const newX = j + (Math.random() - 0.5) * 70 - this.center.x;
+          const newY = this.center.y - (i + (Math.random() - 0.5) * 70);
+          const pt = { 
+            x: newX, y: newY, z: 1
+          };
+          const particle = new PARTICLE(this.center);
+          particle.setAxis(pt);
+          points.push(particle);
         }
       }
     }
@@ -136,10 +146,12 @@ class App extends Component {
     geometry.forEach(({ color, points }) => {
       offscreenCanvasCtx.fillStyle = color;
       for (let i = 0; i < points.length; i++) {
-        const p = points[i];
-        offscreenCanvasCtx.fillRect(p.x, p.y, 2, 2);
+        const particle = points[i];
+        const axis = particle.getAxis2D();
+        offscreenCanvasCtx.fillRect(axis.x, axis.y, 2, 2);
       }
     });
+ 
     const ctx = this.canvas.getContext('2d');
     ctx.drawImage(this.offscreenCanvas, 0, 0, width, height);
   }
@@ -157,24 +169,28 @@ class App extends Component {
     ++this.actionsIndex;
     this.tick = 0;
     if (this.actionsIndex === Actions.length) {
+      window.cancelAnimationFrame(this.raf);
       this.actionsIndex = 0;
+      this.geometrys = [];
+      this.start();
     }
   }
 
   draw = () => {
     this.tick++;
+    this.clear();
+    this.renderParticles();
+    this.raf = requestAnimationFrame(this.draw);
     if (this.tick >= Actions[this.actionsIndex].lifeTime) {
       this.nextAction();
     }
-    this.clear();
-    this.renderParticles();
-    requestAnimationFrame(this.draw);
   }
 
   initCanvas = (c) => {
     this.canvas = c;
     this.canvas.width = c.clientWidth;
     this.canvas.height = c.clientHeight;
+    this.center = { x: c.clientWidth / 2, y: c.clientHeight / 2 };
   }
 
   render() {
